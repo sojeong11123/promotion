@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📧프로모션 메일 회신 템플릿</title>
+    <style>
+        /* Gmail 붙여넣기 최적화 스타일 */
+        body { font-family: "Malgun Gothic", "Nanum Gothic", "Pretendard", "Noto Sans KR", sans-serif; font-size: 1em; background-color: #f6f7fb; margin: 0; padding: 30px; }
+        .container { background: #fff; border-radius: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); padding: 30px; max-width: 700px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 1.8em; margin-bottom: 25px; }
+        label { font-weight: 600; margin-top: 15px; display: block; }
+        select, input, textarea { width: 100%; margin-top: 6px; margin-bottom: 15px; padding: 10px; font-size: 1em; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
+        textarea { height: 200px; resize: none; }
+        /* 복사 버튼 스타일 */
+        #copyButton { width: 100%; padding: 12px; font-size: 1.1em; font-weight: 700; color: #fff; background-color: #007bff; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px; transition: background-color 0.3s ease; }
+        #copyButton:hover { background-color: #0056b3; }
+        /* 관리 버튼 스타일 */
+        #manageButton { width: 100%; padding: 10px; font-size: 1em; color: #007bff; background-color: #e9f5ff; border: 1px solid #007bff; border-radius: 8px; cursor: pointer; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📧 메일 회신 템플릿 자동 완성기</h1>
+        
+        <button id="manageButton" onclick="openManager()">⚙️ 템플릿 관리 창 열기</button>
+
+        <label>메일 카테고리 선택</label>
+        <select id="category">
+            </select>
+
+        <label>받는 분 성함</label>
+        <input type="text" id="name" placeholder="예: 김은정" />
+
+        <label>작품명</label>
+        <input type="text" id="title" placeholder="예: &lt;사랑 안 해&gt;" />
+
+        <label>컨펌 요청일</label>
+        <input type="text" id="date" placeholder="예: 10월 25일" />
+
+        <label>자동 생성된 메일 문안</label>
+        <textarea id="output" placeholder="선택 및 입력 후 자동으로 문안이 표시됩니다."></textarea>
+        
+        <button id="copyButton" onclick="copyText()">📋 텍스트 복사</button>
+    </div>
+
+    <script>
+        const category = document.getElementById("category");
+        const name = document.getElementById("name");
+        const title = document.getElementById("title");
+        const date = document.getElementById("date");
+        const output = document.getElementById("output");
+        const copyButton = document.getElementById("copyButton");
+        const storageKey = 'emailTemplates';
+        const signature = "유소정 드림"; 
+        
+        // 템플릿 기본값 (Local Storage에 데이터가 없을 경우 사용)
+        const DEFAULT_TEMPLATES = {
+            "sns": { name: "① SNS 포스팅 컨펌 요청", text: "{n}님 안녕하세요.\\n카카오엔터테인먼트 유소정입니다.\\n\\n귀사 {t} 작품의 타파스 SNS 포스팅을 희망하여 연락드립니다.\\n상세 내용은 아래 표를 통해 확인 부탁드리며,\\n관련하여 궁금하신 사항은 언제든 편히 연락 부탁드립니다.\\n\\n{d}\\n\\n감사합니다.\\n{signature}" },
+            "discount": { name: "② 할인이벤트 컨펌 요청", text: "{n}님 안녕하세요,\\n카카오엔터테인먼트 유소정입니다.\\n\\n타파스에서 다가오는 <00월 진행 예정인> 할인이벤트에\\n귀사 {t} 작품의 참여를 제안드리고자 연락드립니다.\\n상세 내용은 아래 표를 통해 확인 부탁드리며,\\n관련하여 궁금하신 사항은 언제든 편히 연락 부탁드립니다.\\n\\n{d}\\n\\n감사합니다.\\n{signature}" },
+            "viewing": { name: "③ 열람이벤트 에셋 컨펌 요청", text: "{n}님 안녕하세요,\\n카카오엔터테인먼트 유소정입니다.\\n\\n귀사 {t} 작품의 타파스 열람이벤트 진행을 희망하여 연락드립니다.\\n아래 표와 첨부파일을 통해 상세 내용과 이벤트 에셋 전달드리오니 확인을 부탁드리며,\\n검토 과정에서 문의사항 있으시면 언제든 편히 연락 주시기 바랍니다.\\n\\n{d}\\n\\n감사합니다.\\n{signature}" }
+        };
+
+        function loadTemplates() {
+            let templates = JSON.parse(localStorage.getItem(storageKey));
+            
+            if (!templates) {
+                templates = DEFAULT_TEMPLATES;
+                localStorage.setItem(storageKey, JSON.stringify(templates));
+            }
+            
+            // Select 옵션 초기화
+            const currentSelection = category.value; // 현재 선택 값을 임시 저장
+            category.innerHTML = '<option value="">-- 선택하세요 --</option>';
+            let firstTemplateKey = ''; // 첫 번째 템플릿 키를 저장할 변수
+
+            for (const key in templates) {
+                if (!firstTemplateKey) {
+                    firstTemplateKey = key;
+                }
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = templates[key].name;
+                category.appendChild(option);
+            }
+            
+            // 옵션 로드 후, 이전에 선택된 값이 있다면 복원 시도
+            if (currentSelection && templates[currentSelection]) {
+                category.value = currentSelection;
+            } else if (firstTemplateKey) {
+                // 이전에 선택된 값이 없거나 유효하지 않으면 첫 번째 템플릿을 자동으로 선택
+                category.value = firstTemplateKey;
+            } else {
+                // 템플릿이 아예 없을 경우 '--선택하세요--' 유지
+                category.value = "";
+            }
+            
+            return templates;
+        }
+        
+        function updateTemplate() {
+            // 템플릿을 로드하고 선택 상태를 복원/초기화합니다.
+            const templates = loadTemplates(); 
+            const selectedTemplate = templates[category.value];
+            
+            const n = name.value || "담당자";
+            const t = title.value || "<작품명>";
+            const d = date.value ? `*컨펌 요청일 : ${date.value}` : "*컨펌 요청일 :";
+
+            let text = "선택 및 입력 후 자동으로 문안이 표시됩니다.";
+
+            // 템플릿이 선택되었고, 그 템플릿의 내용(text) 필드가 유효한지 확인
+            if (category.value !== "" && selectedTemplate && selectedTemplate.text) { 
+                
+                let baseText = selectedTemplate.text;
+                
+                text = baseText.replace(/{n}/g, n)
+                                 .replace(/{t}/g, t)
+                                 .replace(/{d}/g, d)
+                                 .replace(/{signature}/g, signature)
+                                 .replace(/\\n/g, '\n'); 
+            } else if (category.value !== "" && selectedTemplate && !selectedTemplate.text) {
+                // 디버깅 메시지: 선택은 되었으나 내용(text) 필드가 누락됨
+                text = `[오류: 템플릿 내용(TEXT) 누락] - 선택된 키: ${category.value}\n템플릿 관리 창을 열어 해당 템플릿의 '메일 문안'을 확인하고 저장해주세요.`;
+                // 콘솔에 오류 기록
+                console.error(`ERROR: Missing 'text' property for template key: ${category.value}`);
+            }
+            
+            output.value = text;
+        }
+        
+        function openManager() {
+            window.open('template_manager.html', 'TemplateManager', 'width=800,height=600,scrollbars=yes');
+        }
+        
+        function copyText() {
+            output.select();
+            output.setSelectionRange(0, 99999);
+            
+            try {
+                navigator.clipboard.writeText(output.value)
+                    .then(() => {
+                        copyButton.textContent = '✅ 복사 완료!';
+                        setTimeout(() => {
+                            copyButton.textContent = '📋 텍스트 복사';
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('클립보드 복사 실패:', err);
+                        alert('텍스트 복사에 실패했습니다. 직접 복사해주세요.');
+                    });
+            } catch (err) {
+                document.execCommand('copy');
+                copyButton.textContent = '✅ 복사 완료!';
+                setTimeout(() => {
+                    copyButton.textContent = '📋 텍스트 복사';
+                }, 2000);
+            }
+        }
+        
+        // 이벤트 리스너
+        window.addEventListener('focus', updateTemplate);
+        category.addEventListener("change", updateTemplate);
+        name.addEventListener("input", updateTemplate);
+        title.addEventListener("input", updateTemplate);
+        date.addEventListener("input", updateTemplate);
+        
+        // 페이지 로드 시 자동 문안 표시를 강제 실행
+        updateTemplate(); 
+    </script>
+</body>
+</html>
